@@ -1,0 +1,2 @@
+"""Adaptadores para bibliotecas externas."""
+
