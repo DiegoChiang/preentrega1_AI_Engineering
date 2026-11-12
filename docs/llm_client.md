@@ -60,19 +60,19 @@ Las claves permanecen en `.env`; el repositorio solo incluye `.env.example` sin 
 Consulta completa con OpenAI:
 
 ```powershell
-python main.py llm "¿Qué es entropía?" --provider openai
+python main.py "¿Qué es entropía?" --provider openai
 ```
 
 Streaming con Anthropic:
 
 ```powershell
-python main.py llm "¿Qué es entropía?" --provider anthropic --stream
+python main.py "¿Qué es entropía?" --provider anthropic --stream
 ```
 
 Ambos modos con el mismo proveedor:
 
 ```powershell
-python main.py llm "¿Qué es entropía?" --provider openai --both
+python main.py "¿Qué es entropía?" --provider openai --both
 ```
 
 También están disponibles los comandos equivalentes mediante `llm-demo` después de instalar el

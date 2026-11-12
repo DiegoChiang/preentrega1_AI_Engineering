@@ -1,152 +1,71 @@
-# Incident Intelligence System
+# Cliente LLM robusto y asíncrono
 
-Sistema asíncrono en Python para consultar modelos de OpenAI y Anthropic, extraer información
-técnica con salida validada y responder preguntas sobre una base de conocimiento local.
+Cliente unificado en Python 3.12 para trabajar con OpenAI y Anthropic mediante una interfaz común.
+Admite generación completa, streaming asíncrono, validación con Pydantic y reintentos ante fallos
+transitorios.
 
 ## Capacidades
 
-### Cliente LLM común
-
-- Interfaz única para OpenAI y Anthropic.
-- Selección del proveedor por argumento o variable `LLM_PROVIDER`.
-- Mensajes, configuración, uso de tokens y respuestas modelados con Pydantic.
-- Generación completa y streaming asíncrono con `async`/`await`.
-- Reintentos con backoff exponencial y propagación segura de cancelaciones.
-- Errores de configuración y de proveedor diferenciados.
-
-### Extracción técnica estructurada
-
-- Identificación de tecnologías mencionadas en un texto.
-- Criticidad normalizada: `baja`, `media` o `alta`.
-- Resumen técnico breve y validado.
-- Composición LCEL `prompt | modelo estructurado`.
-- Ejecución con `ainvoke`, reintentos y registros operativos.
-
-Ejemplo de salida:
-
-```json
-{
-  "technologies": ["Kubernetes", "PostgreSQL"],
-  "criticality": "alta",
-  "technical_summary": "La API presenta errores generalizados por agotamiento del pool de PostgreSQL."
-}
-```
-
-### RAG local
-
-- Carga recursiva de archivos `.txt` y `.md`.
-- Fragmentos de 500 unidades léxicas con 50 de solapamiento, contadas localmente y sin red.
-- Identificadores de chunks reproducibles mediante SHA-256.
-- Persistencia local en Chroma e ingesta idempotente mediante manifiesto.
-- Mismo modelo de embeddings en indexación y consulta.
-- Recuperación asíncrona de los cuatro fragmentos más relevantes por defecto.
-- Filtrado de fragmentos con relevancia inferior a `0.30` y similitud coseno.
-- Respuesta Pydantic con estado de respaldo, confianza, fuentes, fragmentos y puntajes.
-- Respuesta explícita `No lo sé con la información disponible.` cuando no hay evidencia.
-
-## Requisitos
-
-- Python 3.12 o superior.
-- Una clave de OpenAI para embeddings y para los flujos configurados con OpenAI.
-- Una clave de Anthropic cuando `LLM_PROVIDER=anthropic`.
+- Selección de OpenAI o Anthropic mediante `AsyncLLMManager`.
+- SDK oficiales `AsyncOpenAI` y `AsyncAnthropic`.
+- Métodos no bloqueantes basados en `async` y `await`.
+- Streaming mediante un generador `AsyncIterator[str]`.
+- Mensajes, configuración y respuestas validados con Pydantic.
+- Temperatura restringida al rango de 0 a 2.
+- Reintentos con backoff exponencial para red, cuota y rate limiting.
+- Errores controlados de configuración y proveedor.
 
 ## Instalación
 
 ```bash
 python -m venv .venv
-```
-
-Activación en PowerShell:
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-Instalación del proyecto y herramientas de desarrollo:
-
-```bash
 python -m pip install -e ".[dev]"
 ```
 
-Configuración local:
+En PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Completar en `.env` únicamente las claves necesarias. El archivo `.env` está excluido del control
-de versiones.
+Completar las variables necesarias:
+
+```dotenv
+LLM_PROVIDER=openai
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+OPENAI_MODEL=gpt-5.4-mini
+ANTHROPIC_MODEL=claude-sonnet-4-6
+```
+
+`.env` está excluido del control de versiones.
 
 ## Ejecución
 
-### Consulta normal
+Generación completa:
 
 ```bash
-llm-demo "Explica qué es un circuit breaker" --provider openai
+python main.py "¿Qué es la entropía?" --provider openai
 ```
 
-### Streaming
+Streaming:
 
 ```bash
-llm-demo "Resume el patrón retry con backoff" --provider anthropic --stream
+python main.py "¿Qué es la entropía?" --provider anthropic --stream
 ```
 
-### Respuesta completa y streaming
+Generación completa y streaming:
 
 ```bash
-llm-demo "¿Qué es entropía?" --provider openai --both
+python main.py "¿Qué es la entropía?" --provider openai --both
 ```
 
-### Extracción desde texto
+## Contratos principales
 
-```bash
-extract-entities --text "El deployment de Kubernetes devuelve 503 porque Redis agotó la memoria."
-```
-
-### Extracción desde archivo
-
-```bash
-extract-entities --file data/runbook_api_pagos.md
-```
-
-### Ingesta local
-
-```bash
-rag-local ingest
-```
-
-### Consulta con recuperación
-
-```bash
-rag-local query "¿Cuándo debe escalarse un incidente de PostgreSQL?"
-```
-
-También se puede usar el punto de entrada general:
-
-```bash
-python main.py llm "¿Qué es idempotencia?" --provider openai
-python main.py extract --text "PostgreSQL rechaza todas las conexiones."
-python main.py rag query "¿Cuál es el TTL de las claves de idempotencia?"
-```
-
-## Pruebas de evidencia
-
-Consulta respaldada por los documentos:
-
-```bash
-rag-local query "¿Durante cuánto tiempo se conservan las claves de idempotencia?"
-```
-
-La respuesta esperada menciona 24 horas e incluye `redis_idempotencia.txt` entre las fuentes.
-
-Consulta trampa sin respaldo documental:
-
-```bash
-rag-local query "¿Cuál es la contraseña del servidor de producción?"
-```
-
-La respuesta debe indicar que la información no está disponible, con `grounded=false` y sin
-presentar una contraseña.
+- `ChatMessage`: rol y contenido del mensaje.
+- `ModelConfig`: proveedor, modelo, temperatura, límite de tokens, timeout y reintentos.
+- `ModelResponse`: contenido, proveedor, modelo, motivo de finalización y uso de tokens.
+- `BaseLLMClient`: interfaz común con `generate()` y `stream()`.
 
 ## Verificación
 
@@ -156,34 +75,26 @@ ruff check .
 python -m compileall src main.py
 ```
 
-Las pruebas usan dobles asíncronos para proveedores, cadenas y repositorios. No consumen APIs ni
-requieren credenciales.
+Las pruebas usan dobles de los SDK y no consumen créditos.
 
 ## Estructura
 
 ```text
 .
-├── data/                         # Base documental de ejemplo
-├── docs/architecture.md          # Componentes y flujo de datos
+├── docs/llm_client.md
 ├── src/incident_intelligence/
-│   ├── cli/                      # Comandos ejecutables
-│   ├── extraction/               # Esquema, cadena LCEL y servicio
-│   ├── integrations/             # Modelos y embeddings
-│   ├── llm/                      # Abstracción y adaptadores LLM
-│   └── rag/                      # Ingesta, Chroma, retrieval y generación
-├── tests/                        # Pruebas unitarias y de integración local
+│   ├── cli/llm_demo.py
+│   ├── llm/
+│   │   ├── base.py
+│   │   ├── manager.py
+│   │   ├── openai_client.py
+│   │   └── anthropic_client.py
+│   ├── config.py
+│   ├── errors.py
+│   ├── retry.py
+│   └── schemas.py
+├── tests/
 ├── .env.example
 ├── main.py
 └── pyproject.toml
 ```
-
-## Decisiones de seguridad y operación
-
-- Las claves se leen desde variables de entorno y no se imprimen en logs.
-- Un stream solo se reintenta antes de emitir el primer token para evitar respuestas duplicadas.
-- La ingesta elimina chunks obsoletos cuando cambia o desaparece un documento.
-- Los resultados estructurados rechazan campos inesperados.
-- Las cancelaciones asíncronas no se convierten en reintentos.
-
-Detalles del cliente asíncrono en [docs/llm_client.md](docs/llm_client.md) y del flujo completo en
-[docs/architecture.md](docs/architecture.md).
